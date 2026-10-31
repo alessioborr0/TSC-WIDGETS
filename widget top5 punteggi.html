@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="it"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Top 5 punteggi</title>
+<style>
+:root{--bg:#0b1b3a;--panel:#12284f;--line:#24407a;--txt:#eaf0ff;--mut:#8fa3cc;--acc:#e94560;--gold:#ffd700;--silver:#c9d1e0;--bronze:#cd7f32}
+*{box-sizing:border-box}
+body{margin:0;padding:10px;background:var(--bg);color:var(--txt);font:15px/1.25 "Bahnschrift","Roboto Condensed","Arial Narrow",system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.top{display:flex;align-items:baseline;justify-content:space-between;padding:2px 4px 10px;border-bottom:2px solid var(--acc);margin-bottom:10px}
+.top h1{margin:0;font-size:22px;font-weight:700}.top span{font-size:12px;color:var(--mut)}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.tab{display:flex;align-items:center;border:1px solid var(--line);background:transparent;color:var(--mut);padding:5px 11px;border-radius:3px;font:inherit;font-size:13px;cursor:pointer}
+.tab img{height:24px;margin-right:8px}
+.tab.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:700}
+.row{position:relative;display:grid;grid-template-columns:44px 72px 1fr auto;align-items:stretch;margin-bottom:6px;background:var(--panel);border-radius:3px;overflow:hidden;min-height:78px}
+.row.r1{min-height:92px;border-left:4px solid var(--gold)}
+.pos{display:grid;place-items:center;background:var(--line);font-size:20px;font-weight:700;clip-path:polygon(0 0,100% 0,82% 100%,0 100%);padding-right:6px}
+.r1 .pos{background:var(--gold);color:#1a1a2e}.r2 .pos{background:var(--silver);color:#1a1a2e}.r3 .pos{background:var(--bronze);color:#1a1a2e}
+.logo{width:60px;height:60px;display:grid;place-items:center;align-self:center;margin-left:6px}
+.r1 .logo{width:68px;height:68px}
+.logo img{width:100%;height:100%;object-fit:contain}
+.logo.ini{width:46px;height:46px;border-radius:50%;background:var(--line);color:var(--txt);font-weight:700;font-size:15px;margin-left:12px}
+.mid{padding:10px 10px;min-width:0;display:flex;flex-direction:column;justify-content:center}
+.name{font-size:17px;font-weight:700;line-height:1.15}.r1 .name{font-size:20px}
+.sub{margin-top:3px;font-size:13px;line-height:1.3;color:var(--mut)}
+.score{display:flex;flex-direction:column;align-items:flex-end;justify-content:center;min-width:86px;padding:0 14px 0 24px;background:var(--acc);clip-path:polygon(18% 0,100% 0,100% 100%,0 100%);font-size:25px;font-weight:800;line-height:1}
+.r1 .score{background:var(--gold);color:#1a1a2e;font-size:30px;min-width:96px}
+.score small{font-size:11px;font-weight:600;opacity:.85;margin-top:3px}
+.msg{padding:24px 8px;color:var(--mut);text-align:center}
+@media(max-width:420px){.name{font-size:16px}.r1 .name{font-size:18px}.score{min-width:76px;font-size:22px}}
+</style></head><body>
+<div class="top"><h1>Top 5 punteggi</h1><span id="tag"></span></div>
+<div class="tabs" id="tabs"></div>
+<div id="out"><div class="msg">In attesa dei dati.</div></div>
+<script>
+var COLUMNS=[
+ {name:"PUNTEGGIO",title:"Punteggio",type:"Numeric"},{name:"SQUADRA",title:"Squadra",type:"Any"},
+ {name:"AVVERSARIO",title:"Avversario",type:"Any",optional:true},{name:"STAGIONE",title:"Stagione",type:"Any",optional:true},
+ {name:"TURNO",title:"Turno",type:"Any",optional:true},{name:"COMP",title:"Competizione",type:"Any",optional:true},
+ {name:"POS",title:"Posizione",type:"Numeric",optional:true},{name:"LOGO",title:"Logo squadra",type:"Any",optional:true},
+ {name:"COMP_LOGO",title:"Logo competizione",type:"Any",optional:true}];
+var out=document.getElementById("out"),tabsEl=document.getElementById("tabs"),tag=document.getElementById("tag"),gotData=false,rows=[],current=null;
+function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!==undefined&&x!==null)e.textContent=x;return e}
+function has(x){return x!==undefined&&x!==null&&x!==""}
+function val(r,k){return has(r[k])?String(r[k]):""}
+function fmt(n){return Number(n).toLocaleString("it-IT",{minimumFractionDigits:1,maximumFractionDigits:1})}
+function logo(url,name){
+  var d=el("div","logo");
+  function ini(){d.textContent=String(name||"").split(/\s+/).filter(Boolean).slice(0,2).map(function(w){return w[0]}).join("").toUpperCase();d.className="logo ini"}
+  if(has(url)){var i=new Image();i.alt="";i.onerror=ini;i.src=url;d.appendChild(i)}else ini();
+  return d}
+function chip(label,on,fn,url){
+  var b=el("button","tab"+(on?" on":""));
+  if(has(url)){var i=new Image();i.onerror=function(){i.remove()};i.src=url;b.appendChild(i)}
+  b.appendChild(document.createTextNode(label));b.onclick=fn;return b}
+function draw(){
+  var list=[];rows.forEach(function(r){var c=val(r,"COMP");if(list.indexOf(c)<0)list.push(c)});
+  if(current===null||list.indexOf(current)<0)current=list[0];
+  tabsEl.textContent="";
+  if(list.length>1)list.forEach(function(c){
+    var lg="";rows.forEach(function(r){if(!lg&&val(r,"COMP")===c)lg=val(r,"COMP_LOGO")});
+    tabsEl.appendChild(chip(c.replace(/^TSC\s+/i,""),c===current,function(){current=c;draw()},lg))});
+  var sel=rows.filter(function(r){return val(r,"COMP")===current&&has(r.PUNTEGGIO)&&has(r.SQUADRA)});
+  sel.sort(function(a,b){return has(a.POS)&&has(b.POS)?a.POS-b.POS:b.PUNTEGGIO-a.PUNTEGGIO});
+  sel=sel.slice(0,5);out.textContent="";
+  if(!sel.length){out.appendChild(el("div","msg","Nessuna partita per questa competizione."));return}
+  sel.forEach(function(r,i){
+    var rank=has(r.POS)?r.POS:i+1,row=el("div","row"+(rank<=3?" r"+rank:""));
+    row.appendChild(el("div","pos",rank));row.appendChild(logo(r.LOGO,r.SQUADRA));
+    var mid=el("div","mid");mid.appendChild(el("div","name",String(r.SQUADRA)));
+    if(has(r.AVVERSARIO))mid.appendChild(el("div","sub","vs "+r.AVVERSARIO));
+    var q=[];if(has(r.STAGIONE))q.push(r.STAGIONE);if(has(r.TURNO))q.push("turno "+r.TURNO);
+    if(q.length)mid.appendChild(el("div","sub",q.join("  -  ")));
+    row.appendChild(mid);
+    var sc=el("div","score",fmt(r.PUNTEGGIO));sc.appendChild(el("small","","punti"));row.appendChild(sc);
+    out.appendChild(row)})}
+function demo(){
+  if(gotData)return;tag.textContent="Dati di esempio";
+  rows=[{COMP:"TSC LEAGUE",POS:1,PUNTEGGIO:96.5,SQUADRA:"Civapcici",AVVERSARIO:"FC Pjatelo",STAGIONE:"2025/26",TURNO:11},
+   {COMP:"TSC LEAGUE",POS:2,PUNTEGGIO:90.5,SQUADRA:"Duffman City",AVVERSARIO:"FC Pjatelo",STAGIONE:"2025/26",TURNO:12},
+   {COMP:"TSC LEAGUE",POS:3,PUNTEGGIO:88,SQUADRA:"AC Panchester",AVVERSARIO:"Macigni FC",STAGIONE:"2025/26",TURNO:20},
+   {COMP:"TSC LEAGUE",POS:4,PUNTEGGIO:86,SQUADRA:"Treviso Scott",AVVERSARIO:"Joy Boys FC",STAGIONE:"2025/26",TURNO:5},
+   {COMP:"TSC LEAGUE",POS:5,PUNTEGGIO:85.5,SQUADRA:"Boris Siviglia",AVVERSARIO:"I BUCA-LONI",STAGIONE:"2025/26",TURNO:17},
+   {COMP:"TSC CHAMPIONS LEAGUE PHASE",POS:1,PUNTEGGIO:92,SQUADRA:"FinoAlConfine",AVVERSARIO:"Scaldapanchina",STAGIONE:"2025/26",TURNO:9}];
+  draw()}
+function startGrist(){
+  grist.ready({requiredAccess:"read table",columns:COLUMNS});
+  grist.onRecords(function(recs){
+    var m=grist.mapColumnNames(recs);
+    if(!m){out.textContent="";out.appendChild(el("div","msg","Abbina le colonne dal pannello del widget: servono Punteggio e Squadra."));return}
+    gotData=true;tag.textContent="";rows=m;draw()})}
+var sc=document.createElement("script");sc.src="https://docs.getgrist.com/grist-plugin-api.js";
+sc.onload=function(){startGrist();setTimeout(demo,1500)};sc.onerror=demo;document.head.appendChild(sc);
+</script></body></html>
