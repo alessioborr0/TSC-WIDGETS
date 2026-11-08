@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="it"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Partite piu squilibrate</title>
+<style>
+:root{--bg:#0b1b3a;--panel:#12284f;--line:#24407a;--txt:#eaf0ff;--mut:#8fa3cc;--acc:#e94560;--gold:#ffd700;--silver:#c9d1e0;--bronze:#cd7f32;--win:#4ade80}
+*{box-sizing:border-box}
+body{margin:0;padding:10px;background:var(--bg);color:var(--txt);font:15px/1.25 "Bahnschrift","Roboto Condensed","Arial Narrow",system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.top{display:flex;align-items:baseline;justify-content:space-between;padding:2px 4px 10px;border-bottom:2px solid var(--acc);margin-bottom:10px}
+.top h1{margin:0;font-size:22px;font-weight:700}.top span{font-size:12px;color:var(--mut)}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.tab{display:inline-flex;align-items:center;border:1px solid var(--line);background:transparent;color:var(--mut);padding:6px 12px;border-radius:3px;font:inherit;font-size:13px;cursor:pointer}
+.tab img{height:24px;margin-right:8px}
+.tab.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:700}
+.row{display:grid;grid-template-columns:38px 1fr auto;margin-bottom:6px;background:var(--panel);border-radius:3px;overflow:hidden;min-height:118px}
+.row.r1{border-left:4px solid var(--gold)}
+.pos{display:grid;place-items:center;background:var(--line);font-size:19px;font-weight:700;clip-path:polygon(0 0,100% 0,78% 100%,0 100%);padding-right:6px}
+.r1 .pos{background:var(--gold);color:#1a1a2e}.r2 .pos{background:var(--silver);color:#1a1a2e}.r3 .pos{background:var(--bronze);color:#1a1a2e}
+.body{padding:10px 6px;display:flex;flex-direction:column;justify-content:center;gap:7px;min-width:0}
+.match{display:grid;grid-template-columns:1fr auto 1fr;align-items:start;gap:2px}
+.side{text-align:center;min-width:0}
+.logo{width:48px;height:48px;margin:0 auto 4px;display:grid;place-items:center}
+.logo img{width:100%;height:100%;object-fit:contain}
+.logo.ini{width:40px;height:40px;border-radius:50%;background:var(--line);font-weight:700;font-size:14px;margin:4px auto 8px}
+.nm{font-size:14px;font-weight:700;line-height:1.15;word-break:break-word}
+.pt{margin-top:2px;font-size:13px;color:var(--mut)}
+.w .pt{color:var(--win);font-weight:700}
+.mid{align-self:center;text-align:center;font-size:21px;font-weight:800;padding:0 4px}
+.sub{text-align:center;font-size:12px;color:var(--mut)}
+.diff{display:flex;flex-direction:column;align-items:flex-end;justify-content:center;min-width:78px;padding:0 12px 0 22px;background:var(--acc);clip-path:polygon(18% 0,100% 0,100% 100%,0 100%);font-size:22px;font-weight:800;line-height:1}
+.r1 .diff{background:var(--gold);color:#1a1a2e}
+.diff small{font-size:10px;font-weight:600;opacity:.85;margin-top:3px}
+.msg{padding:24px 8px;color:var(--mut);text-align:center}
+</style></head><body>
+<div class="top"><h1>Partite pi&ugrave; squilibrate</h1><span id="tag"></span></div>
+<div class="tabs" id="tabs"></div>
+<div id="out"><div class="msg">In attesa dei dati.</div></div>
+<script>
+var COLUMNS=[
+ {name:"DIFFERENZA",title:"Differenza punti",type:"Numeric"},
+ {name:"VINCITORE",title:"Vincitore",type:"Any"},
+ {name:"SCONFITTO",title:"Sconfitto",type:"Any"},
+ {name:"PUNTI_VINC",title:"Punti vincitore",type:"Numeric",optional:true},
+ {name:"PUNTI_SCONF",title:"Punti sconfitto",type:"Numeric",optional:true},
+ {name:"GOL",title:"Risultato (gol)",type:"Any",optional:true},
+ {name:"STAGIONE",title:"Stagione",type:"Any",optional:true},
+ {name:"TURNO",title:"Turno",type:"Any",optional:true},
+ {name:"COMP",title:"Competizione",type:"Any",optional:true},
+ {name:"POS",title:"Posizione",type:"Numeric",optional:true},
+ {name:"LOGO_VINC",title:"Logo vincitore",type:"Any",optional:true},
+ {name:"LOGO_SCONF",title:"Logo sconfitto",type:"Any",optional:true},
+ {name:"COMP_LOGO",title:"Logo competizione",type:"Any",optional:true}];
+var out=document.getElementById("out"),tabsEl=document.getElementById("tabs"),tag=document.getElementById("tag"),gotData=false,rows=[],current=null;
+function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!==undefined&&x!==null)e.textContent=x;return e}
+function has(x){return x!==undefined&&x!==null&&x!==""}
+function val(r,k){return has(r[k])?String(r[k]):""}
+function fmt(n){return Number(n).toLocaleString("it-IT",{minimumFractionDigits:1,maximumFractionDigits:1})}
+function logo(url,name){
+  var d=el("div","logo");
+  function ini(){d.textContent=String(name||"").split(/\s+/).filter(Boolean).slice(0,2).map(function(w){return w[0]}).join("").toUpperCase();d.className="logo ini"}
+  if(has(url)){var i=new Image();i.alt="";i.onerror=ini;i.src=url;d.appendChild(i)}else ini();
+  return d}
+function chip(label,on,fn,url){
+  var b=el("button","tab"+(on?" on":""));
+  if(has(url)){var i=new Image();i.onerror=function(){i.remove()};i.src=url;b.appendChild(i)}
+  b.appendChild(document.createTextNode(label));b.onclick=fn;return b}
+function side(n,u,p,w){
+  var s=el("div","side"+(w?" w":""));s.appendChild(logo(u,n));s.appendChild(el("div","nm",String(n)));
+  if(has(p))s.appendChild(el("div","pt",fmt(p)));return s}
+function draw(){
+  var list=[];rows.forEach(function(r){var c=val(r,"COMP");if(list.indexOf(c)<0)list.push(c)});
+  if(current===null||list.indexOf(current)<0)current=list[0];
+  tabsEl.textContent="";
+  if(list.length>1)list.forEach(function(c){
+    var lg="";rows.forEach(function(r){if(!lg&&val(r,"COMP")===c)lg=val(r,"COMP_LOGO")});
+    tabsEl.appendChild(chip(c.replace(/^TSC\s+/i,""),c===current,function(){current=c;draw()},lg))});
+  var sel=rows.filter(function(r){return val(r,"COMP")===current&&has(r.DIFFERENZA)&&has(r.VINCITORE)});
+  sel.sort(function(a,b){return has(a.POS)&&has(b.POS)?a.POS-b.POS:b.DIFFERENZA-a.DIFFERENZA});
+  sel=sel.slice(0,5);out.textContent="";
+  if(!sel.length){out.appendChild(el("div","msg","Nessun dato per questa competizione."));return}
+  sel.forEach(function(r,i){
+    var rank=has(r.POS)?r.POS:i+1,row=el("div","row"+(rank<=3?" r"+rank:""));
+    row.appendChild(el("div","pos",rank));
+    var b=el("div","body"),m=el("div","match");
+    m.appendChild(side(r.VINCITORE,r.LOGO_VINC,r.PUNTI_VINC,true));
+    m.appendChild(el("div","mid",has(r.GOL)?String(r.GOL):"vs"));
+    m.appendChild(side(r.SCONFITTO,r.LOGO_SCONF,r.PUNTI_SCONF,false));
+    b.appendChild(m);
+    var q=[];if(has(r.STAGIONE))q.push(r.STAGIONE);if(has(r.TURNO))q.push("turno "+r.TURNO);
+    if(q.length)b.appendChild(el("div","sub",q.join("  -  ")));
+    row.appendChild(b);
+    var d=el("div","diff","+"+fmt(r.DIFFERENZA));d.appendChild(el("small","","differenza"));row.appendChild(d);
+    out.appendChild(row)})}
+function demo(){
+  if(gotData)return;tag.textContent="Dati di esempio";
+  rows=[{COMP:"TSC LEAGUE",POS:1,DIFFERENZA:34.5,VINCITORE:"Civapcici",SCONFITTO:"FC Pjatelo",PUNTI_VINC:86,PUNTI_SCONF:51.5,GOL:"3-0",STAGIONE:"2025/26",TURNO:11},
+   {COMP:"TSC LEAGUE",POS:2,DIFFERENZA:29.5,VINCITORE:"Duffman City",SCONFITTO:"FC Pjatelo",PUNTI_VINC:90.5,PUNTI_SCONF:61,GOL:"2-1",STAGIONE:"2025/26",TURNO:12},
+   {COMP:"TSC LEAGUE",POS:3,DIFFERENZA:22.5,VINCITORE:"Boris Siviglia",SCONFITTO:"I BUCA-LONI",PUNTI_VINC:75.5,PUNTI_SCONF:53,GOL:"2-0",STAGIONE:"2025/26",TURNO:6},
+   {COMP:"TSC LEAGUE",POS:4,DIFFERENZA:22,VINCITORE:"Boris Siviglia",SCONFITTO:"I BUCA-LONI",PUNTI_VINC:82.5,PUNTI_SCONF:60.5,GOL:"3-1",STAGIONE:"2025/26",TURNO:17},
+   {COMP:"TSC LEAGUE",POS:5,DIFFERENZA:21,VINCITORE:"Macigni FC",SCONFITTO:"I BUCA-LONI",PUNTI_VINC:75,PUNTI_SCONF:54,GOL:"2-0",STAGIONE:"2025/26",TURNO:10},
+   {COMP:"TSC CHAMPIONS LEAGUE PHASE",POS:1,DIFFERENZA:25,VINCITORE:"FinoAlConfine",SCONFITTO:"Scaldapanchina",PUNTI_VINC:84,PUNTI_SCONF:59,GOL:"2-0",STAGIONE:"2025/26",TURNO:9}];
+  draw()}
+function startGrist(){
+  grist.ready({requiredAccess:"read table",columns:COLUMNS});
+  grist.onRecords(function(recs){
+    var m=grist.mapColumnNames(recs);
+    if(!m){out.textContent="";out.appendChild(el("div","msg","Abbina le colonne dal pannello del widget: servono Differenza, Vincitore e Sconfitto."));return}
+    gotData=true;tag.textContent="";rows=m;draw()})}
+var sc=document.createElement("script");sc.src="https://docs.getgrist.com/grist-plugin-api.js";
+sc.onload=function(){startGrist();setTimeout(demo,1500)};sc.onerror=demo;document.head.appendChild(sc);
+</script></body></html>
