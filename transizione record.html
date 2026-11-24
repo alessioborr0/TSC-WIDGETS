@@ -38,20 +38,28 @@ var CONFIG = {
   titolo: "TOP 5 Punteggio Partita - TSC LEAGUE",
   etichettaPrima: "Prima della sosta Nazionali",
   etichettaDopo: "Dopo l'ottava giornata",
-  // n = nome squadra (identico in prima e dopo), p = punti
+
   prima: [
-    {n:"FC Pjatelo", p:91.0}, {n:"Duffman City", p:90.5}, {n:"FC Cetta Nera", p:89.5},
-    {n:"Civapcici", p:89.0},     {n:"Boris Siviglia", p:88.0}
+    {id:"pjatelo1", n:"FC Pjatelo", p:91.0},
+    {id:"duffman", n:"Duffman City", p:90.5},
+    {id:"cetta", n:"FC Cetta Nera", p:89.5},
+    {id:"civapcici", n:"Civapcici", p:89.0},
+    {id:"boris", n:"Boris Siviglia", p:88.0}
   ],
+
   dopo: [
-    {n:"FC Pjatelo", p:94.5}, {n:"FC Pjatelo", p:91.0}, {n:"Duffman City", p:90.5}, 
-    {n:"FC Cetta Nera", p:89.5},  {n:"Civapcici", p:89.0}     
+    {id:"pjatelo2", n:"FC Pjatelo", p:94.5},
+    {id:"pjatelo1", n:"FC Pjatelo", p:91.0},
+    {id:"duffman", n:"Duffman City", p:90.5},
+    {id:"cetta", n:"FC Cetta Nera", p:89.5},
+    {id:"civapcici", n:"Civapcici", p:89.0}
   ],
+
   base: "https://alessioborr0.github.io/TSC-WIDGETS/img/",
-  loghi: {},          // facoltativo: {"FC Pjatelo":"https://.../logo.png"}
-  attesaPrima: 1000,   // millisecondi di pausa sulla classifica iniziale
-  durata: 2000,       // durata del movimento
-  attesaDopo: 1400    // pausa finale
+  loghi: {},
+  attesaPrima: 1000,
+  durata: 2000,
+  attesaDopo: 1400
 };
 // ========================
 
@@ -115,7 +123,7 @@ function prepara(){
   document.getElementById("titolo").textContent = CONFIG.titolo;
   document.getElementById("etichetta").textContent = CONFIG.etichettaPrima;
   CONFIG.prima.forEach(function(t, k){
-    var r = creaRiga(t); rows[t.n] = r;
+    var r = creaRiga(t); rows[t.id || t.n] = r;
     r.style.transition = "none"; setRank(r, k); porta(r, k);
     list.appendChild(r); void r.offsetWidth; r.style.transition = "";
   });
@@ -126,14 +134,14 @@ function passa(){
   document.getElementById("etichetta").textContent = CONFIG.etichettaDopo;
   var restano = {};
   CONFIG.dopo.forEach(function(t, k){
-    restano[t.n] = true;
-    var r = rows[t.n];
+    restano[t.id || t.n] = true;
+    var r = rows[t.id || t.n];
     if(r){
       porta(r, k);
       conta(r, r.cur, t.p, D); r.cur = t.p;
       (function(r, k){ after(D * 0.45, function(){ setRank(r, k); }); })(r, k);
     } else {
-      r = creaRiga(t); rows[t.n] = r; setRank(r, k);
+      r = creaRiga(t); rows[t.id || t.n] = r; setRank(r, k);
       r.style.transition = "none"; r.style.opacity = 0; porta(r, k, "-120%");
       list.appendChild(r); void r.offsetWidth; r.style.transition = "";
       r.style.opacity = 1; r.classList.add("nuovo"); porta(r, k);
